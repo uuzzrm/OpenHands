@@ -7,6 +7,17 @@ import { useRuntimeIsReady } from "#/hooks/use-runtime-is-ready";
 import { getGitPath } from "#/utils/get-git-path";
 import type { GitChange } from "#/api/open-hands.types";
 
+function dedupeChangesByPath(changes: GitChange[]): GitChange[] {
+  const seenPaths = new Set<string>();
+
+  return changes.filter((change) => {
+    if (seenPaths.has(change.path)) return false;
+
+    seenPaths.add(change.path);
+    return true;
+  });
+}
+
 export const useUnifiedGetGitChanges = () => {
   const { conversationId } = useConversationId();
   const { data: conversation } = useActiveConversation();
@@ -63,11 +74,14 @@ export const useUnifiedGetGitChanges = () => {
 
         // Figure out new items by comparing with what we already have
         if (Array.isArray(currentData)) {
-          const currentIds = new Set(currentData.map((item) => item.path));
+          const uniqueCurrentData = dedupeChangesByPath(currentData);
+          const currentIds = new Set(
+            uniqueCurrentData.map((item) => item.path),
+          );
           const existingIds = new Set(orderedChanges.map((item) => item.path));
 
           // Filter out items that already exist in orderedChanges
-          const newItems = currentData.filter(
+          const newItems = uniqueCurrentData.filter(
             (item) => !existingIds.has(item.path),
           );
 
